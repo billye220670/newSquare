@@ -8,7 +8,9 @@ html, body, #root {
   background: #f2f2f5;
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Segoe UI", Roboto, sans-serif;
   color: #1c1c1e;
-  overscroll-behavior-y: none;
+  /* 同时阻断纵向 / 横向 overscroll，避免 Chrome / Edge 横向 overscroll 触发前进后退 */
+  overscroll-behavior: none;
+  overflow-x: hidden;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -92,10 +94,21 @@ html, body, #root {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+  gap: 12px;
   background: linear-gradient(to bottom, rgba(242,242,245,0.96) 60%, rgba(242,242,245,0));
   backdrop-filter: saturate(180%) blur(18px);
   -webkit-backdrop-filter: saturate(180%) blur(18px);
   transition: transform .35s cubic-bezier(.22,.8,.36,1), opacity .25s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+.header-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 .top-header.hide {
   transform: translateY(-110%);
@@ -108,7 +121,51 @@ html, body, #root {
   letter-spacing: 1.6px;
   text-transform: uppercase;
   margin-bottom: 4px;
+  animation: dateFade .3s ease both;
 }
+@keyframes dateFade {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === Title Swiper: 标题本身可拖 + 相邻期次灰色 peek === */
+.title-swiper {
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  /* 主动告诉浏览器：这里只走水平手势，不要被「侧滑返回」、「上下滚动」抢走 */
+  touch-action: pan-x;
+  overscroll-behavior: contain;
+}
+.title-swiper .swiper-wrapper { align-items: center; }
+.title-swiper .swiper-slide {
+  width: auto !important;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.title-slide {
+  font-family: 'Smiley Sans', 'OPPOSans H', "PingFang SC", sans-serif;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: .95;
+  letter-spacing: -1.5px;
+  -webkit-text-stroke: .6px currentColor;
+  color: #c7c7cc;
+  opacity: .55;
+  padding: 0;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  transition: color .28s ease, opacity .28s ease;
+}
+.title-slide.active {
+  color: #1c1c1e;
+  opacity: 1;
+  cursor: pointer;
+}
+.title-swiper:active .title-slide { cursor: grabbing; }
 .header-title {
   font-family: 'Smiley Sans', 'OPPOSans H', "PingFang SC", sans-serif;
   font-size: 40px;
@@ -116,6 +173,187 @@ html, body, #root {
   line-height: .95;
   letter-spacing: -1.5px;
   -webkit-text-stroke: .6px currentColor;
+}
+
+/* ===== Archive 期刊封面页（沉浸式）===== */
+.archive-page {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 200;
+  overflow: hidden;
+  animation: pageIn .32s cubic-bezier(.22,.8,.36,1) both;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+/* 独立滚动层：让 grid 图片区在底层沉浸滚动 */
+.archive-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  z-index: 1;
+}
+/* Grid: 撞满、无间隙、无圆角、无外边距；顶部留出一段黑色区承载 intro */
+.archive-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  /* 默认下沉，让「每一天」标题下方是纯黑色区 */
+  padding-top: calc(env(safe-area-inset-top, 0px) + 240px);
+}
+.archive-tile {
+  position: relative;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: #1c1c1e center/cover no-repeat;
+  border-radius: 0;
+  box-shadow: none;
+  cursor: pointer;
+  text-align: left;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  transition: opacity .15s ease;
+}
+.archive-tile:active { opacity: .85; }
+/* 单张图底部渐变，让 date/title 可读 */
+.archive-tile-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,.7) 0%, rgba(0,0,0,.15) 50%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+}
+.archive-tile-meta {
+  position: absolute;
+  left: 14px; right: 14px; bottom: 12px;
+  color: #fff;
+  z-index: 2;
+  text-shadow: 0 2px 8px rgba(0,0,0,.5);
+}
+.archive-tile-date {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  opacity: .9;
+}
+.archive-tile-title {
+  font-family: 'Smiley Sans', 'OPPOSans H', "PingFang SC", sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -.6px;
+  line-height: 1.05;
+  margin-top: 4px;
+}
+.archive-tile.current {
+  outline: 2.5px solid #fff;
+  outline-offset: -2.5px;
+}
+.archive-current-tag {
+  position: absolute;
+  top: 10px; left: 10px;
+  z-index: 3;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.95);
+  color: #1c1c1e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+/* 顶部覆层：上黑下透的渐变 + 白色文字，压在 grid 顶部 */
+.archive-top-fade {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 10;
+  pointer-events: none; /* 让下方 grid 可点 */
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 0 60px;
+}
+/* 黑色渐变背景独立图层，随 intro 同步渐隐 */
+.archive-top-grad {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom,
+    rgba(0,0,0,.85) 0%,
+    rgba(0,0,0,.65) 40%,
+    rgba(0,0,0,.25) 80%,
+    rgba(0,0,0,0) 100%);
+  pointer-events: none;
+  will-change: opacity;
+  z-index: 0;
+}
+.archive-page .archive-header {
+  position: relative;
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 8px;
+  pointer-events: none;
+  z-index: 1;
+}
+.archive-page .archive-close {
+  pointer-events: auto;
+  color: #fff;
+  background: none;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 8px 6px 4px;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 6px rgba(0,0,0,.55);
+}
+.archive-page .archive-close svg { width: 18px; height: 18px; }
+.archive-page .archive-header-title {
+  color: #fff;
+  font-family: 'Smiley Sans', 'OPPOSans H', "PingFang SC", sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -.3px;
+  flex: 1;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 1px 6px rgba(0,0,0,.55);
+}
+.archive-page .archive-header-spacer { width: 56px; }
+.archive-intro {
+  pointer-events: none;
+  padding: 14px 22px 0;
+  /* opacity / transform 由 JS 根据滚动距离控制 */
+  will-change: opacity, transform;
+}
+.archive-intro-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  color: rgba(255,255,255,.75);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.archive-intro-title {
+  font-family: 'Smiley Sans', 'OPPOSans H', "PingFang SC", sans-serif;
+  font-size: 38px;
+  font-weight: 900;
+  letter-spacing: -1.2px;
+  line-height: 1.05;
+  color: #fff;
+  text-shadow: 0 2px 14px rgba(0,0,0,.45);
 }
 
 /* ===== Feed ===== */
