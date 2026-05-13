@@ -41,7 +41,7 @@ export const VIDEO_CONTENT = [
     brand: '一宅一物', desc: '生活方式 · 视频专栏', cta: '关注', icon: '宅',
     iconBg: 'linear-gradient(135deg,#a8c0ff,#3f74e8)' },
   { eyebrow: '特别企划', title: '小家也能住豪宅感', sub: '60㎡ 老破小逆袭实录',
-    brand: '住艺 LiveArt', desc: '改造 · 旧房翻新', cta: '获取', icon: '艺',
+    brand: '住艺 LiveArt', desc: '改造 · 旧房翻新', cta: '查看', icon: '艺',
     iconBg: 'linear-gradient(135deg,#ffb1b1,#e85a5a)' }
 ]
 
@@ -52,7 +52,7 @@ export const MAGAZINE_CONTENT = [
     iconBg: 'linear-gradient(135deg,#fbb,#f57)' },
   { badge: '专题', eyebrow: '材质美学', title: '关于"木"的一切想象',
     sub: '把森林搬进家：12 个设计师的回答',
-    brand: '素材笔记', desc: '专题 · 木作 · 自然系', cta: '获取',
+    brand: '素材笔记', desc: '专题 · 木作 · 自然系', cta: '查看',
     iconBg: 'linear-gradient(135deg,#d4b48c,#7a5a3a)' },
   { badge: '专辑', eyebrow: '色彩研究', title: '把莫兰迪穿在墙上',
     sub: '6 种灰调，6 种性格，6 个家',
