@@ -67,7 +67,7 @@ const HEADER_TABS = [
 ]
 const ALT_TITLES = { recommend: '当下编辑推荐' }
 
-function TopHeader({ hidden, issueOffset, onIssueChange, onTitleClick, activeTab, onTabChange, searchOpen, searchQuery, onSearchQueryChange, onSearchToggle }) {
+function TopHeader({ hidden, issueOffset, onIssueChange, onTitleClick, activeTab, onTabChange, searchOpen, searchQuery, onSearchQueryChange, onSearchToggle, favIssues, onToggleFav }) {
   const swiperRef = useRef(null)
   const isCurrent = activeTab === 'current'
   const isRecommend = activeTab === 'recommend'
@@ -183,14 +183,30 @@ function TopHeader({ hidden, issueOffset, onIssueChange, onTitleClick, activeTab
                 return (
                   <SwiperSlide key={off} style={{ width: 'auto' }}>
                     {({ isActive }) => (
-                      <span
-                        className={'title-slide' + (isActive ? ' active' : '')}
-                        onClick={() => {
-                          if (isActive) onTitleClick()
-                          else swiperRef.current?.slideTo(i, 320)
-                        }}
-                      >
-                        {title}
+                      <span className={'title-slide-wrap' + (isActive ? ' active' : '')}>
+                        <span
+                          className={'title-slide' + (isActive ? ' active' : '')}
+                          onClick={() => {
+                            if (isActive) onTitleClick()
+                            else swiperRef.current?.slideTo(i, 320)
+                          }}
+                        >
+                          {title}
+                        </span>
+                        {isActive && (
+                          <button
+                            type="button"
+                            className="title-fav-btn"
+                            onClick={e => { e.stopPropagation(); onToggleFav(off) }}
+                          >
+                            <HeartIcon
+                              size={20}
+                              strokeWidth={2}
+                              fill={favIssues.has(off) ? '#ff3b57' : 'none'}
+                              color={favIssues.has(off) ? '#ff3b57' : '#999'}
+                            />
+                          </button>
+                        )}
                       </span>
                     )}
                   </SwiperSlide>
@@ -208,7 +224,7 @@ function TopHeader({ hidden, issueOffset, onIssueChange, onTitleClick, activeTab
 }
 
 /* ---------- 期刊封面网格页（沉浸式、图片撞满、顶部黑色渐变覆层）---------- */
-function ArchivePage({ current, onPick, onClose }) {
+function ArchivePage({ current, onPick, onClose, favIssues, onToggleFav }) {
   const issues = Array.from({ length: 14 }, (_, i) => -i) // 0, -1, ..., -13
   const scrollRef = useRef(null)
   const [scrollY, setScrollY] = useState(0)
@@ -252,7 +268,21 @@ function ArchivePage({ current, onPick, onClose }) {
                 <div className="archive-tile-shade" />
                 <div className="archive-tile-meta">
                   <div className="archive-tile-date">{dateStr}</div>
-                  <div className="archive-tile-title">{title}</div>
+                  <div className="archive-tile-title-row">
+                    <div className="archive-tile-title">{title}</div>
+                    <button
+                      type="button"
+                      className="archive-tile-fav-btn"
+                      onClick={e => { e.stopPropagation(); onToggleFav(off) }}
+                    >
+                      <HeartIcon
+                        size={16}
+                        strokeWidth={2}
+                        fill={favIssues.has(off) ? '#ff3b57' : 'none'}
+                        color={favIssues.has(off) ? '#ff3b57' : 'rgba(255,255,255,.7)'}
+                      />
+                    </button>
+                  </div>
                 </div>
                 {off === current && <div className="archive-current-tag">当前</div>}
               </button>
@@ -3476,6 +3506,12 @@ export default function App() {
   const [view, setView] = useState('feed') // 'feed' | 'archive' | 'history' | 'mymags'
   const [issueOffset, setIssueOffset] = useState(0)
   const [activeTab, setActiveTab] = useState('current') // 'current' | 'recommend' | 'me'
+  const [favIssues, setFavIssues] = useState(() => new Set(MY_MAGAZINES))
+  const toggleFavIssue = off => setFavIssues(prev => {
+    const next = new Set(prev)
+    if (next.has(off)) next.delete(off); else next.add(off)
+    return next
+  })
   const [items, setItems] = useState(() => makeBatch(seedFor('current', 0), 0, 6))
   const [hasMore, setHasMore] = useState(true)
   const [hidden, setHidden] = useState(false)
@@ -3611,6 +3647,8 @@ export default function App() {
           current={issueOffset}
           onPick={off => { switchIssue(off); setView('feed') }}
           onClose={() => setView('feed')}
+          favIssues={favIssues}
+          onToggleFav={toggleFavIssue}
         />
         {downloadOverlay}
       </>
@@ -3678,6 +3716,8 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         onSearchToggle={toggleSearch}
+        favIssues={favIssues}
+        onToggleFav={toggleFavIssue}
       />
       {searchOpen ? (
         <SearchPage

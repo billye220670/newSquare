@@ -385,6 +385,34 @@ html, body, #root {
   cursor: pointer;
 }
 .title-swiper:active .title-slide { cursor: grabbing; }
+
+/* === 主页标题旁收藏心形按钮 === */
+.title-slide-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.title-slide-wrap.active {
+  gap: 14px;
+}
+.title-fav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+  opacity: .85;
+  transition: opacity .2s, transform .2s;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+.title-fav-btn:active {
+  transform: scale(1.25);
+  opacity: 1;
+}
+
 .header-title {
   font-family: 'Smiley Sans', 'OPPOSans H', "PingFang SC", sans-serif;
   font-size: 40px;
@@ -469,6 +497,32 @@ html, body, #root {
   letter-spacing: -.6px;
   line-height: 1.05;
   margin-top: 4px;
+}
+.archive-tile-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.archive-tile-title-row .archive-tile-title {
+  margin-top: 0;
+  flex: 1;
+  min-width: 0;
+}
+.archive-tile-fav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .2s;
+}
+.archive-tile-fav-btn:active {
+  transform: scale(1.3);
 }
 .archive-tile.current {
   outline: 2.5px solid #fff;
