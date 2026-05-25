@@ -72,16 +72,17 @@ export const STORY_CONTENT = [
       { name: '手工竹编灯笼', price: '¥780', img: '1493663284031-b7e3aefcae8e' },
       { name: '极简金属夹灯', price: '¥199', img: '1532372320572-cda25653a26d' }
     ] },
-  { eyebrow: '本周精选', title: '让餐桌讲故事', sub: '8 件可以传家的餐具',
+  { eyebrow: '失重叙事', title: '在引力之外住下', sub: '6 个可以推门走进去的远方',
     cover: '1567016432779-094069958ea5',
-    listTitle: '编辑挑选',
+    coverUrl: '/spaceTemplate/spaceTemplateMain.jpg',
+    listTitle: '推门进去',
     items: [
-      { name: '日式手作陶碗', price: '¥120', img: '1493663284031-b7e3aefcae8e' },
-      { name: '亚麻餐垫四件组', price: '¥220', img: '1555041469-a586c61ea9bc' },
-      { name: '手工玻璃水杯', price: '¥98', img: '1532372320572-cda25653a26d' },
-      { name: '黑胡桃木餐板', price: '¥360', img: '1567016526105-22da7c13161a' },
-      { name: '银釉餐盘', price: '¥180', img: '1567016432779-094069958ea5' },
-      { name: '手作茶壶 · 粗陶', price: '¥420', img: '1540574163026-643ea20ade25' }
+      { name: '月球基地起居舱',   price: '漫游 12 min', img: '1493663284031-b7e3aefcae8e', imgUrl: '/spaceTemplate/spaceTemplate%20%281%29.jpg' },
+      { name: '火星沙丘观景舱',   price: '漫游 18 min', img: '1555041469-a586c61ea9bc', imgUrl: '/spaceTemplate/spaceTemplate%20%285%29.jpg' },
+      { name: '零重力睡眠舱',       price: '漫游 8 min',  img: '1532372320572-cda25653a26d', imgUrl: '/spaceTemplate/spaceTemplate%20%286%29.jpg' },
+      { name: '银河观星书房',       price: '漫游 15 min', img: '1567016526105-22da7c13161a', imgUrl: '/spaceTemplate/spaceTemplate%20%287%29.jpg' },
+      { name: '深空科研工作舱', price: '漫游 20 min', img: '1567016432779-094069958ea5', imgUrl: '/spaceTemplate/spaceTemplate%20%288%29.jpg' },
+      { name: '轨道空间站客厅', price: '漫游 25 min', img: '1540574163026-643ea20ade25', imgUrl: '/spaceTemplate/spaceTemplate%20%289%29.jpg' }
     ] },
   { eyebrow: '产业带特辑', title: '佛山制造', sub: '奢侣品家具同源工厂，1/5 的价格拥有同等品质',
     cover: '1600585154340-be6161a56a0c',

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react'
-import { Button, Image, InfiniteScroll, DotLoading, Popup } from 'antd-mobile'
+import { Button, Image, Popup } from 'antd-mobile'
 import { SoundOutline, SoundMuteOutline, LeftOutline } from 'antd-mobile-icons'
 import { Search as SearchIcon, X as CloseIcon, Clock as ClockIcon, TrendingUp as TrendingIcon, Flame as FlameIcon, ArrowLeft as ArrowLeftIcon, User as UserIcon, Heart as HeartIcon, Bookmark as BookmarkIcon, Settings as SettingsIcon, ChevronRight as ChevronRightIcon, Home as HomeIcon, Briefcase as BriefcaseIcon, LayoutGrid as LayoutGridIcon, LogOut as LogOutIcon, RefreshCw as RefreshIcon, Plus as PlusIcon, BookOpen as BookOpenIcon, HardDrive as HardDriveIcon, CloudDownload as CloudDownloadIcon, ListFilter as ListFilterIcon, Check as CheckIcon, Sparkles as SparklesIcon, Palette as PaletteIcon, Box as BoxIcon } from 'lucide-react'
 import { Swiper, SwiperSlide } from 'swiper/react'
@@ -366,10 +366,71 @@ function MyMagazinesPage({ onPick, onClose }) {
   )
 }
 
-/* ---------- 1. 视频卡 ---------- */
-function VideoCard({ idx, onOpen }) {
-  const c = cycle(VIDEO_CONTENT, idx)
-  const v = cycle(VIDEO_URLS, idx)
+/* ---------- 1. 视频卡（自身可左右滑动的轮播） ---------- */
+/* 视频卡底部 CTA：默认“云下载”，与浏览历史页同款样式：
+   idle → 云图标；queued/spinning → 准备中 Spinner；downloading/paused → 圆圈进度（可点击暂停/继续）；done → 进入。 */
+function VideoCtaButton({ title, downloads, startDownload, togglePauseResume }) {
+  const dl = downloads?.[title]
+  const status = dl?.status || 'idle'
+  const stop = e => e.stopPropagation()
+
+  if (status === 'done') {
+    return (
+      <button type="button" className="history-go" onClick={stop} aria-label="进入">进入</button>
+    )
+  }
+  if (status === 'queued' || status === 'spinning') {
+    return (
+      <button
+        type="button"
+        className="history-cloud is-loading"
+        onClick={stop}
+        aria-label={status === 'queued' ? '排队中' : '准备下载'}
+      >
+        <span className="history-spinner" />
+      </button>
+    )
+  }
+  if (status === 'downloading' || status === 'paused') {
+    const C = 2 * Math.PI * 13
+    const dash = ((dl.progress || 0) / 100) * C
+    const isPaused = status === 'paused'
+    return (
+      <button
+        type="button"
+        className="history-cloud is-progress"
+        aria-label={isPaused ? `已暂停 ${Math.round(dl.progress || 0)}%` : `下载中 ${Math.round(dl.progress || 0)}%`}
+        onClick={e => { e.stopPropagation(); togglePauseResume?.(title) }}
+      >
+        <span className="history-progress">
+          <svg viewBox="0 0 32 32" className="history-progress-svg">
+            <circle className="history-progress-track" cx="16" cy="16" r="13" />
+            <circle
+              className="history-progress-bar"
+              cx="16" cy="16" r="13"
+              strokeDasharray={`${dash} ${C}`}
+            />
+          </svg>
+          {isPaused
+            ? <span className="history-progress-play" />
+            : <span className="history-progress-stop" />}
+        </span>
+      </button>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className="history-cloud"
+      aria-label="从云端下载"
+      onClick={e => { e.stopPropagation(); startDownload?.(title) }}
+    >
+      <CloudDownloadIcon size={26} strokeWidth={1.8} />
+    </button>
+  )
+}
+
+function VideoSlide({ item, active, onOpen, downloads, startDownload, togglePauseResume, slides, slideIndex }) {
   const ref = useRef(null)
   const [muted, setMuted] = useState(true)
   const [failed, setFailed] = useState(false)
@@ -377,46 +438,56 @@ function VideoCard({ idx, onOpen }) {
   const handleOpen = e => {
     const origin = e.currentTarget.getBoundingClientRect()
     onOpen?.(origin, {
-      variant: 'single',
+      variant: 'video',
       payload: {
-        eyebrow: c.eyebrow, title: c.title, sub: c.sub,
-        heroImg: v.poster, brand: c.brand, desc: c.desc,
-        icon: c.icon, iconBg: c.iconBg, cta: c.cta
+        eyebrow: item.eyebrow, title: item.title, sub: item.sub,
+        heroImg: item.poster, brand: item.brand, desc: item.desc,
+        icon: item.icon, iconBg: item.iconBg, cta: item.cta,
+        slides: slides || [],
+        initialIndex: slideIndex || 0
       }
     })
   }
 
+  // 仅当此 slide 处于激活状态时播放，避免多视频同时播
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    // 尝试首次播放（个别手机浏览器需要手动 trigger）
-    const tryPlay = () => el.play().catch(() => {})
-    tryPlay()
+    if (active) {
+      el.play().catch(() => {})
+    } else {
+      el.pause()
+      try { el.currentTime = 0 } catch (_) {}
+    }
+  }, [active])
+
+  // 离屏自动暂停，回到屏内若激活则继续播
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
     const io = new IntersectionObserver(
       ([e]) => {
-        if (e.isIntersecting) tryPlay()
+        if (e.isIntersecting && active) el.play().catch(() => {})
         else el.pause()
       },
       { threshold: 0.4 }
     )
     io.observe(el)
     return () => io.disconnect()
-  }, [])
+  }, [active])
 
   return (
-    <article className="tcard tcard-video clickable" onClick={handleOpen}>
-      {/* 底层 poster 兑底：视频加载中或失败都能看到美图 */}
+    <div className="video-slide clickable" onClick={handleOpen}>
       <div
         className="video-poster"
-        style={{ backgroundImage: `url(${v.poster})` }}
+        style={{ backgroundImage: `url(${item.poster})` }}
       />
       {!failed && (
         <video
           ref={ref}
-          src={v.url}
-          poster={v.poster}
+          src={item.url}
+          poster={item.poster}
           muted={muted}
-          autoPlay
           loop
           playsInline
           webkit-playsinline="true"
@@ -432,17 +503,61 @@ function VideoCard({ idx, onOpen }) {
         {muted ? <SoundMuteOutline /> : <SoundOutline />}
       </button>
       <div className="video-overlay">
-        <div className="eyebrow">{c.eyebrow}</div>
-        <div className="t-title-lg">{c.title}</div>
-        <div className="t-sub">{c.sub}</div>
+        <div className="eyebrow">{item.eyebrow}</div>
+        <div className="t-title-lg">{item.title}</div>
+        <div className="t-sub">{item.sub}</div>
       </div>
       <div className="bottom-bar">
-        <div className="brand-icon" style={{ background: c.iconBg }}>{c.icon}</div>
+        <div className="brand-icon" style={{ background: item.iconBg }}>{item.icon}</div>
         <div className="brand-text">
-          <div className="brand-name">{c.brand}</div>
-          <div className="brand-desc">{c.desc}</div>
+          <div className="brand-name">{item.brand}</div>
+          <div className="brand-desc">{item.desc}</div>
         </div>
-        <Button className="pill-cta" size="small">{c.cta}</Button>
+        <VideoCtaButton
+          title={item.title}
+          downloads={downloads}
+          startDownload={startDownload}
+          togglePauseResume={togglePauseResume}
+        />
+      </div>
+    </div>
+  )
+}
+
+function VideoCard({ idx = 0, onOpen, downloads, startDownload, togglePauseResume }) {
+  const [active, setActive] = useState(0)
+  // 卡片本身作为轮播：聚合 VIDEO_CONTENT 的多个视频，依据 idx 偏移避免每期相同顺序
+  const slides = VIDEO_CONTENT.map((c, i) => {
+    const v = cycle(VIDEO_URLS, i + idx)
+    return { ...c, url: v.url, poster: v.poster }
+  })
+  return (
+    <article className="tcard tcard-video-carousel">
+      <Swiper
+        className="video-carousel-swiper"
+        slidesPerView={1}
+        speed={420}
+        onSlideChange={s => setActive(s.activeIndex)}
+      >
+        {slides.map((it, i) => (
+          <SwiperSlide key={i}>
+            <VideoSlide
+              item={it}
+              active={i === active}
+              onOpen={onOpen}
+              downloads={downloads}
+              startDownload={startDownload}
+              togglePauseResume={togglePauseResume}
+              slides={slides}
+              slideIndex={i}
+            />
+          </SwiperSlide>
+        ))}
+      </Swiper>
+      <div className="video-carousel-dots" aria-hidden="true">
+        {slides.map((_, i) => (
+          <span key={i} className={'vc-dot' + (i === active ? ' active' : '')} />
+        ))}
       </div>
     </article>
   )
@@ -488,6 +603,7 @@ function MagazineCard({ idx, onOpen }) {
 function StoryCard({ idx, onOpen }) {
   const c = cycle(STORY_CONTENT, idx)
   const heroRef = useRef(null)
+  const heroSrc = c.coverUrl || IMG(c.cover)
   const handleOpen = () => {
     const el = heroRef.current
     if (!el) return
@@ -496,7 +612,7 @@ function StoryCard({ idx, onOpen }) {
       variant: 'story',
       payload: {
         eyebrow: c.eyebrow, title: c.title, sub: c.sub,
-        heroImg: IMG(c.cover),
+        heroImg: heroSrc,
         listTitle: c.listTitle,
         items: c.items,
         featured: c.items && c.items[0]
@@ -505,7 +621,7 @@ function StoryCard({ idx, onOpen }) {
   }
   return (
     <article className="tcard tcard-story">
-      <div ref={heroRef} className="hero clickable" onClick={handleOpen} style={{ backgroundImage: `url(${IMG(c.cover)})` }}>
+      <div ref={heroRef} className="hero clickable" onClick={handleOpen} style={{ backgroundImage: `url(${heroSrc})` }}>
         <div className="hero-text">
           <div className="eyebrow">{c.eyebrow}</div>
           <div className="t-title-md">{c.title}</div>
@@ -532,7 +648,7 @@ function StoryCard({ idx, onOpen }) {
           {c.items.map((it, i) => (
             <SwiperSlide key={i} style={{ width: 110 }}>
               <div className="product-item">
-                <div className="pi-img" style={{ backgroundImage: `url(${IMG(it.img, 320)})` }} />
+                <div className="pi-img" style={{ backgroundImage: `url(${it.imgUrl || IMG(it.img, 320)})` }} />
                 <div className="pi-name">{it.name}</div>
                 <div className="pi-price">{it.price}</div>
               </div>
@@ -664,12 +780,133 @@ function GalleryCard({ idx, onOpen }) {
 const DETAIL_PLACEHOLDER = [
   '一款由编辑团队精挑细选的内容，融合空间美学、生活方式与细节工艺。从第一眼开始，就给日子注入微妙的仪式感。',
   '我们相信，家不仅是住所，更是时间与情绪的容器。从光影、材质到动线，每一个选择都指向“更适合当下的你”——无需炫耀，也无需妥协。',
-  '走进空间，你会察觉那些被温柔安放的细节：原木的纹理、布艺的褶皱、金属件冷静的反射。它们彼此呼应，又各自独立，像一场不急不缓的对话。',
+  '走进空间，你会察觉那些被温柔安放的细节：原木的纹理、布艺的襃皱、金属件冷静的反射。它们彼此呼应，又各自独立，像一场不急不缓的对话。',
   '每一件物、每一束光，都有自己的节奏。让空间替你慢下来，让生活在细节里生长。'
 ]
 const DETAIL_QUOTE = '把日子过成诗，也把诗过成日常。'
 
-function DetailOverlay({ detail, onClose }) {
+/* story 详情页专用：太空与未来居家生活主题，保留 4 段正文 + 中部引言的排版结构 */
+const STORY_DETAIL_PLACEHOLDER = [
+  '从地面抬起脚跟的那一刻，引力就轻了一点。舱门闭合，所有声音会被拍成一层薄薄的纱；身体还记得在地面上的重量，心却已经先一步漂起来。这不是远方，只是把“居家”换了一种重力。',
+  '我们没有重新发明家，只是把它从地表搬到了轨道。客厅依旧坐人，书桌依旧摊开未写完的句子，只是舱外多了一颗会自转的星球，多了一道每隔九十分钟走一圈的日出。家是容器，盛放的从来不只是物，而是你愿意停留多久。',
+  '金属舱壁的弧度被精心计算过：温度可以贴脸，灯光会随着心跳调暗。月壤色的羊毛地毯踩下去几乎无声，全息投影从舱顶淌下来像一束安静的潮汐——它们彼此让步，让你成为这间舱里唯一发出声响的人。',
+  '不必出发，也能漂浮。推开太空舱门的那一刻你会明白：所谓未来，其实只是一种愿意慢下来的勇气。'
+]
+const STORY_DETAIL_QUOTE = '在引力之外，把日子重新住一遍。'
+
+/* 详情页排行榜每项右侧的云下载按钮：复用 history-* 样式的 4 状态机。
+   主推卡（detail-get-card）与主推在榜单中的那一行共享同一个 key，点任一个都会同步状态 */
+function DetailRowDownloadButton({ title, downloads, startDownload, togglePauseResume }) {
+  const dl = downloads?.[title]
+  const status = dl?.status || 'idle'
+  const stop = e => e.stopPropagation()
+
+  if (status === 'done') {
+    return (
+      <button type="button" className="history-go" onClick={stop} aria-label="进入">进入</button>
+    )
+  }
+  if (status === 'queued' || status === 'spinning') {
+    return (
+      <button
+        type="button"
+        className="history-cloud is-loading"
+        onClick={stop}
+        aria-label={status === 'queued' ? '排队中' : '准备下载'}
+      >
+        <span className="history-spinner" />
+      </button>
+    )
+  }
+  if (status === 'downloading' || status === 'paused') {
+    const C = 2 * Math.PI * 13
+    const dash = ((dl.progress || 0) / 100) * C
+    const isPaused = status === 'paused'
+    return (
+      <button
+        type="button"
+        className="history-cloud is-progress"
+        aria-label={isPaused ? `已暂停 ${Math.round(dl.progress || 0)}%` : `下载中 ${Math.round(dl.progress || 0)}%`}
+        onClick={e => { e.stopPropagation(); togglePauseResume?.(title) }}
+      >
+        <span className="history-progress">
+          <svg viewBox="0 0 32 32" className="history-progress-svg">
+            <circle className="history-progress-track" cx="16" cy="16" r="13" />
+            <circle
+              className="history-progress-bar"
+              cx="16" cy="16" r="13"
+              strokeDasharray={`${dash} ${C}`}
+            />
+          </svg>
+          {isPaused
+            ? <span className="history-progress-play" />
+            : <span className="history-progress-stop" />}
+        </span>
+      </button>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className="history-cloud"
+      aria-label="从云端下载"
+      onClick={e => { e.stopPropagation(); startDownload?.(title) }}
+    >
+      <CloudDownloadIcon size={26} strokeWidth={1.8} />
+    </button>
+  )
+}
+
+/* 详情页内嵌视频轮播：镜像主页 VideoCard 轮播，使用 poster 静态展示 */
+function DetailVideoCarousel({ slides, initialIndex, downloads, startDownload, togglePauseResume }) {
+  const [active, setActive] = useState(initialIndex)
+  return (
+    <div className="detail-video-section">
+      <Swiper
+        className="video-carousel-swiper"
+        initialSlide={initialIndex}
+        speed={420}
+        onSlideChange={s => setActive(s.activeIndex)}
+      >
+        {slides.map((slide, i) => (
+          <SwiperSlide key={i}>
+            <div className="video-slide">
+              <div
+                className="video-poster"
+                style={{ backgroundImage: `url(${slide.poster})` }}
+              />
+              <div className="video-overlay">
+                <div className="eyebrow">{slide.eyebrow}</div>
+                <div className="t-title-lg">{slide.title}</div>
+                <div className="t-sub">{slide.sub}</div>
+              </div>
+              <div className="bottom-bar">
+                <div className="brand-icon" style={{ background: slide.iconBg }}>{slide.icon}</div>
+                <div className="brand-text">
+                  <div className="brand-name">{slide.brand}</div>
+                  <div className="brand-desc">{slide.desc}</div>
+                </div>
+                <VideoCtaButton
+                  title={slide.title}
+                  downloads={downloads}
+                  startDownload={startDownload}
+                  togglePauseResume={togglePauseResume}
+                />
+              </div>
+            </div>
+          </SwiperSlide>
+        ))}
+      </Swiper>
+      <div className="video-carousel-dots">
+        {slides.map((_, i) => (
+          <span key={i} className={'vc-dot' + (i === active ? ' active' : '')} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function DetailOverlay({ detail, onClose, downloads, startDownload, togglePauseResume }) {
   const rootRef = useRef(null)
   const [closing, setClosing] = useState(false)
   const closingRef = useRef(false)
@@ -737,9 +974,26 @@ function DetailOverlay({ detail, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // 详情页打开期间锁住底层页面滚动，避免同时出现 body 与 .detail-scroll 两根滚动条
+  useEffect(() => {
+    const html = document.documentElement
+    const body = document.body
+    const prevHtml = html.style.overflow
+    const prevBody = body.style.overflow
+    html.style.overflow = 'hidden'
+    body.style.overflow = 'hidden'
+    return () => {
+      html.style.overflow = prevHtml
+      body.style.overflow = prevBody
+    }
+  }, [])
+
   const { variant, payload } = detail
   const items = payload.items || []
   const featured = payload.featured
+  // story 详情页使用太空主题文案，其他 variant 仍用通用文案
+  const placeholders = variant === 'story' ? STORY_DETAIL_PLACEHOLDER : DETAIL_PLACEHOLDER
+  const quote = variant === 'story' ? STORY_DETAIL_QUOTE : DETAIL_QUOTE
 
   return (
     <div
@@ -757,60 +1011,106 @@ function DetailOverlay({ detail, onClose }) {
         <CloseIcon size={18} strokeWidth={2.6} />
       </button>
       <div className="detail-scroll">
-        <div
-          className={'detail-hero detail-hero-' + variant}
-          style={{ backgroundImage: `url(${payload.heroImg})` }}
-        >
-          <div className="detail-hero-grad" />
-          <div className="detail-hero-text">
-            {payload.eyebrow && <div className="detail-eyebrow">{payload.eyebrow}</div>}
-            <div className="detail-title">{payload.title}</div>
-            {payload.sub && <div className="detail-sub">{payload.sub}</div>}
+        {variant === 'video' && payload.slides && payload.slides.length > 0 ? (
+          /* video 类型：轮播直接作为头部，不单独渲染静态头图 */
+          <DetailVideoCarousel
+            slides={payload.slides}
+            initialIndex={payload.initialIndex || 0}
+            downloads={downloads}
+            startDownload={startDownload}
+            togglePauseResume={togglePauseResume}
+          />
+        ) : (
+          <div
+            className={'detail-hero detail-hero-' + variant}
+            style={{ backgroundImage: `url(${payload.heroImg})` }}
+          >
+            <div className="detail-hero-grad" />
+            <div className="detail-hero-text">
+              {payload.eyebrow && <div className="detail-eyebrow">{payload.eyebrow}</div>}
+              <div className="detail-title">{payload.title}</div>
+              {payload.sub && <div className="detail-sub">{payload.sub}</div>}
+            </div>
           </div>
-        </div>
+        )}
 
         {variant === 'story' && featured && (
           <div className="detail-get-card">
             <div
               className="dgc-icon"
-              style={{ backgroundImage: `url(${IMG(featured.img, 240)})` }}
+              style={{ backgroundImage: `url(${featured.imgUrl || IMG(featured.img, 240)})` }}
             />
             <div className="dgc-text">
               <div className="dgc-name">{featured.name}</div>
               <div className="dgc-sub">{payload.listTitle || '本期精选'}</div>
             </div>
             <div className="dgc-action">
-              <Button className="pill-get" size="small">查看</Button>
+              <DetailRowDownloadButton
+                title={featured.name}
+                downloads={downloads}
+                startDownload={startDownload}
+                togglePauseResume={togglePauseResume}
+              />
             </div>
           </div>
         )}
 
         <div className="detail-body">
-          <p>{DETAIL_PLACEHOLDER[0]}</p>
-          <p>{DETAIL_PLACEHOLDER[1]}</p>
+          <p>{placeholders[0]}</p>
+          <p>{placeholders[1]}</p>
           <blockquote className="detail-quote">
             <span className="detail-quote-mark left">&ldquo;</span>
-            <span className="detail-quote-text">{DETAIL_QUOTE}</span>
+            <span className="detail-quote-text">{quote}</span>
             <span className="detail-quote-mark right">&rdquo;</span>
           </blockquote>
-          <p>{DETAIL_PLACEHOLDER[2]}</p>
+          <p>{placeholders[2]}</p>
 
           {variant === 'story' && items.length > 0 && (
-            <div className="detail-thumb-row">
-              {items.slice(0, 8).map((it, i) => (
-                <div key={i} className="dtr-item">
-                  <div
-                    className="dtr-img"
-                    style={{ backgroundImage: `url(${IMG(it.img, 320)})` }}
-                  />
-                  <div className="dtr-name">{it.name}</div>
-                  {it.price && <div className="dtr-price">{it.price}</div>}
-                </div>
-              ))}
+            <div className="detail-inline-video">
+              <video
+                src="/spaceTemplate/PixPin_2026-05-25_14-55-55.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+              />
             </div>
           )}
 
-          <p>{DETAIL_PLACEHOLDER[3]}</p>
+          <p>{placeholders[3]}</p>
+
+          {variant === 'story' && items.length > 0 && (
+            <article className="tcard tcard-list detail-rank-list">
+              <div className="list-header">
+                <div className="list-eyebrow">{payload.eyebrow || '漫游清单'}</div>
+                <div className="list-title">{payload.listTitle || '推门进去'}</div>
+                <div className="list-sub">点击右侧云图标下载漫游包，随时走进去</div>
+              </div>
+              {items.map((it, i) => (
+                <div key={i} className="list-item">
+                  <div className="li-rank">{i + 1}</div>
+                  <Image
+                    src={it.imgUrl || IMG(it.img, 240)}
+                    width={56}
+                    height={56}
+                    fit="cover"
+                    style={{ borderRadius: 13, flexShrink: 0 }}
+                  />
+                  <div className="li-text">
+                    <div className="li-name">{it.name}</div>
+                    <div className="li-desc">{it.price || '可漫游空间'}</div>
+                  </div>
+                  <DetailRowDownloadButton
+                    title={it.name}
+                    downloads={downloads}
+                    startDownload={startDownload}
+                    togglePauseResume={togglePauseResume}
+                  />
+                </div>
+              ))}
+            </article>
+          )}
         </div>
       </div>
     </div>
@@ -1950,8 +2250,45 @@ const SEARCH_TRENDING = [
   { rank: 6, tag: '治愈系卧室', desc: '柔光 · 布艺 · 疗愈系', hot: '410K', img: '1618220179428-22790b461013' }
 ]
 
+/* ---------- 搜索页探索瀑布流混合数据 ---------- */
+const SEARCH_EXPLORE_MIX = [
+  { type: 'moodboard', title: '奶油色系灵感', localImg: '/moodboards/moodboarditem%20%281%29.jpg', desc: '18 张图 · 软装配色', ratio: 1.4 },
+  { type: 'space', title: '北欧轻奢客厅', img: '1600210492486-724fe5c67fb0', desc: '3 个方案 · 林墨设计', ratio: 1.25 },
+  { type: 'ai', title: '北欧沙发组合', localImg: '/Imgs/ai-modeling-thumbnail%20%281%29.webp', ratio: 1.0 },
+  { type: 'moodboard', title: '侘寂 × 留白', localImg: '/moodboards/moodboarditem%20%288%29.jpg', desc: '12 张图 · 空间美学', ratio: 1.55 },
+  { type: 'space', title: '日式侘寂卧室', img: '1618220179428-22790b461013', desc: '2 个方案 · 一筑设计', ratio: 1.5 },
+  { type: 'ai', title: '原木餐桌椅', localImg: '/Imgs/ai-modeling-thumbnail%20%282%29.webp', ratio: 1.0 },
+  { type: 'moodboard', title: '木质温暖合集', localImg: '/moodboards/moodboarditem%20%287%29.jpg', desc: '24 张图 · 材质参考', ratio: 1.0 },
+  { type: 'space', title: '极简灰调工作室', img: '1556909114-f6e7ad7d3136', desc: '1 个方案 · 自建', ratio: 0.9 },
+  { type: 'ai', title: '岩板茶几', localImg: '/Imgs/ai-modeling-thumbnail%20%283%29.webp', ratio: 1.0 },
+  { type: 'moodboard', title: '色彩研究：莫兰迪', localImg: '/moodboards/moodboarditem%20%289%29.jpg', desc: '16 张图 · 墙面涂料', ratio: 1.2 },
+  { type: 'space', title: '原木全屋定制', img: '1486946255434-2466348c2166', desc: '4 个方案 · 好好住', ratio: 1.35 },
+  { type: 'ai', title: '黄铜落地灯', localImg: '/Imgs/ai-modeling-thumbnail%20%284%29.webp', ratio: 1.0 },
+  { type: 'moodboard', title: '黄铜 × 大理石', localImg: '/moodboards/moodboarditem%20%2810%29.jpg', desc: '9 张图 · 质感搭配', ratio: 1.35 },
+  { type: 'space', title: '法式轻奢玄关', img: '1493809842364-78817add7ffb', desc: '2 个方案 · MoStudio', ratio: 1.1 },
+  { type: 'ai', title: '丝绒单人椅', localImg: '/Imgs/ai-modeling-thumbnail%20%285%29.webp', ratio: 1.0 },
+  { type: 'moodboard', title: '绿植与光影', localImg: '/moodboards/moodboarditem%20%2811%29.jpg', desc: '20 张图 · 自然系', ratio: 1.5 },
+  { type: 'space', title: '工业风 Loft', img: '1505691938895-1758d7feb511', desc: '3 个方案 · 野人事务所', ratio: 1.6 },
+  { type: 'ai', title: '羊毛地毯', localImg: '/Imgs/ai-modeling-thumbnail%20%286%29.webp', ratio: 1.0 },
+  { type: 'moodboard', title: '地中海蓝调', localImg: '/moodboards/moodboarditem%20%2812%29.jpg', desc: '14 张图 · 度假风', ratio: 1.15 },
+  { type: 'ai', title: '玻璃球吊灯', localImg: '/Imgs/ai-modeling-thumbnail%20%287%29.webp', ratio: 1.0 },
+  { type: 'moodboard', title: '复古中古屋', localImg: '/moodboards/moodboarditem%20%2813%29.jpg', desc: '22 张图 · Vintage', ratio: 1.45 },
+  { type: 'ai', title: '收纳边几', localImg: '/Imgs/ai-modeling-thumbnail%20%288%29.webp', ratio: 1.0 }
+]
+const EXPLORE_TYPE_LABEL = { space: '空间', moodboard: 'Moodboard', ai: '模型' }
+
 function SearchPage({ query, onPick, onPickIssue }) {
   const pick = (word) => onPick && onPick(word)
+
+  // 双列瀑布流分配
+  const cols = [[], []]
+  const colH = [0, 0]
+  SEARCH_EXPLORE_MIX.forEach(item => {
+    const shorter = colH[0] <= colH[1] ? 0 : 1
+    cols[shorter].push(item)
+    colH[shorter] += (item.ratio || 1.2)
+  })
+
   return (
     <main className="search-page">
       <section className="search-section">
@@ -1969,79 +2306,56 @@ function SearchPage({ query, onPick, onPickIssue }) {
         </div>
       </section>
 
-      {/* 热门期刊：横向自动滚动封面，点击跳期刊详情 */}
-      <section className="search-section search-hot-section">
-        <div className="search-section-head">
-          <div className="search-section-title">
-            <FlameIcon size={16} strokeWidth={2.2} />
-            <span>热门期刊</span>
-          </div>
-          <span className="search-section-hint">编辑精选</span>
-        </div>
-        <Swiper
-          className="search-hot-swiper"
-          modules={[Autoplay, FreeMode]}
-          slidesPerView="auto"
-          spaceBetween={12}
-          freeMode={{ enabled: true, momentum: false }}
-          loop={true}
-          loopAdditionalSlides={2}
-          autoplay={{ delay: 0, disableOnInteraction: false, pauseOnMouseEnter: false }}
-          speed={4200}
-          allowTouchMove={true}
-        >
-          {SEARCH_HOT_ISSUES.map((off, i) => {
-            const { title, dateStr } = getIssueMeta(off)
-            const img = IMG(cycle(COVER_IMAGES, Math.abs(off)), 600)
-            return (
-              <SwiperSlide key={off + '-' + i} style={{ width: 168 }}>
-                <button
-                  type="button"
-                  className="search-hot-card"
-                  style={{ backgroundImage: `url(${img})` }}
-                  onClick={() => onPickIssue && onPickIssue(off)}
-                >
-                  <div className="search-hot-shade" />
-                  <div className="search-hot-meta">
-                    <div className="search-hot-date">{dateStr}</div>
-                    <div className="search-hot-title">{title}</div>
-                  </div>
-                </button>
-              </SwiperSlide>
-            )
-          })}
-        </Swiper>
-      </section>
-
-      <section className="search-section">
+      {/* 混合探索瀑布流 */}
+      <section className="search-section search-explore-section">
         <div className="search-section-head">
           <div className="search-section-title">
             <TrendingIcon size={16} strokeWidth={2.2} />
-            <span>当下热搜</span>
+            <span>为你推荐</span>
           </div>
-          <span className="search-section-hint">每日更新</span>
+          <span className="search-section-hint">猜你喜欢</span>
         </div>
-        <ul className="trending-list">
-          {SEARCH_TRENDING.map(t => (
-            <li key={t.rank} className="trending-item" onClick={() => pick(t.tag)}>
-              <div
-                className="trending-cover"
-                style={{ backgroundImage: `url(${IMG(t.img, 280)})` }}
-              />
-              <div className="trending-text">
-                <div className="trending-tag">
-                  <span>{t.tag}</span>
-                  {t.badge && <em className={'trending-badge badge-' + t.badge.toLowerCase()}>{t.badge}</em>}
-                </div>
-                <div className="trending-desc">{t.desc}</div>
-              </div>
-              <div className="trending-hot">
-                <FlameIcon size={13} strokeWidth={2.4} />
-                <span>{t.hot}</span>
-              </div>
-            </li>
+        <div className="search-explore-masonry">
+          {cols.map((col, ci) => (
+            <div key={ci} className="fav-masonry-col">
+              {col.map((item, i) => {
+                const imgUrl = item.localImg || IMG(item.img, 400)
+                if (item.type === 'ai') {
+                  return (
+                    <div key={item.title + i} className="fav-square-card">
+                      <div
+                        className="fav-square-img"
+                        style={{ backgroundImage: `url(${imgUrl})` }}
+                      />
+                      <div className="fav-pin-body">
+                        <div className="fav-pin-title">{item.title}</div>
+                        <span className="explore-type-tag tag-ai">{EXPLORE_TYPE_LABEL[item.type]}</span>
+                      </div>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={item.title + i} className="fav-pin">
+                    <div
+                      className="fav-pin-img"
+                      style={{
+                        backgroundImage: `url(${imgUrl})`,
+                        paddingBottom: `${(item.ratio || 1.2) * 100}%`
+                      }}
+                    />
+                    <div className="fav-pin-body">
+                      <div className="fav-pin-info">
+                        <div className="fav-pin-title">{item.title}</div>
+                        <div className="fav-pin-desc">{item.desc}</div>
+                      </div>
+                      <span className={'explore-type-tag tag-' + item.type}>{EXPLORE_TYPE_LABEL[item.type]}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           ))}
-        </ul>
+        </div>
       </section>
 
       {query && (
@@ -2414,10 +2728,181 @@ function LocalCachePage({ onClose }) {
   )
 }
 
-function MePage({ onOpenHistory, onOpenMyMags, onOpenCache }) {
+/* ---------- 我的收藏页（tab: 空间 / Moodboard / AI模型）---------- */
+const FAV_TABS = [
+  { key: 'space', label: '空间' },
+  { key: 'moodboard', label: 'Moodboard' },
+  { key: 'ai', label: 'AI 模型' }
+]
+const FAV_DATA = {
+  space: [
+    { title: '北欧轻奢客厅', img: '1600210492486-724fe5c67fb0', desc: '3 个方案 · 林墨设计', ratio: 1.25 },
+    { title: '日式侘寂卧室', img: '1618220179428-22790b461013', desc: '2 个方案 · 一筑设计', ratio: 1.5 },
+    { title: '极简灰调工作室', img: '1556909114-f6e7ad7d3136', desc: '1 个方案 · 自建', ratio: 0.9 },
+    { title: '原木全屋定制', img: '1486946255434-2466348c2166', desc: '4 个方案 · 好好住', ratio: 1.35 },
+    { title: '法式轻奢玄关', img: '1493809842364-78817add7ffb', desc: '2 个方案 · MoStudio', ratio: 1.1 },
+    { title: '工业风 Loft', img: '1505691938895-1758d7feb511', desc: '3 个方案 · 野人事务所', ratio: 1.6 }
+  ],
+  moodboard: [
+    { title: '奶油色系灵感', localImg: '/moodboards/moodboarditem%20%281%29.jpg', desc: '18 张图 · 软装配色', ratio: 1.4 },
+    { title: '木质温暖合集', localImg: '/moodboards/moodboarditem%20%287%29.jpg', desc: '24 张图 · 材质参考', ratio: 1.0 },
+    { title: '侘寂 × 留白', localImg: '/moodboards/moodboarditem%20%288%29.jpg', desc: '12 张图 · 空间美学', ratio: 1.55 },
+    { title: '色彩研究：莫兰迪', localImg: '/moodboards/moodboarditem%20%289%29.jpg', desc: '16 张图 · 墙面涂料', ratio: 1.2 },
+    { title: '黄铜 × 大理石', localImg: '/moodboards/moodboarditem%20%2810%29.jpg', desc: '9 张图 · 质感搭配', ratio: 1.35 },
+    { title: '绿植与光影', localImg: '/moodboards/moodboarditem%20%2811%29.jpg', desc: '20 张图 · 自然系', ratio: 1.5 },
+    { title: '地中海蓝调', localImg: '/moodboards/moodboarditem%20%2812%29.jpg', desc: '14 张图 · 度假风', ratio: 1.15 },
+    { title: '复古中古屋', localImg: '/moodboards/moodboarditem%20%2813%29.jpg', desc: '22 张图 · Vintage', ratio: 1.45 },
+    { title: '极简线条感', localImg: '/moodboards/moodboarditem%20%2814%29.jpg', desc: '15 张图 · 几何美学', ratio: 1.3 }
+  ],
+  ai: [
+    { title: '北欧沙发组合', localImg: '/Imgs/ai-modeling-thumbnail%20%281%29.webp' },
+    { title: '原木餐桌椅', localImg: '/Imgs/ai-modeling-thumbnail%20%282%29.webp' },
+    { title: '岩板茶几', localImg: '/Imgs/ai-modeling-thumbnail%20%283%29.webp' },
+    { title: '黄铜落地灯', localImg: '/Imgs/ai-modeling-thumbnail%20%284%29.webp' },
+    { title: '丝绒单人椅', localImg: '/Imgs/ai-modeling-thumbnail%20%285%29.webp' },
+    { title: '羊毛地毯', localImg: '/Imgs/ai-modeling-thumbnail%20%286%29.webp' },
+    { title: '玻璃球吴灯', localImg: '/Imgs/ai-modeling-thumbnail%20%287%29.webp' },
+    { title: '收纳边几', localImg: '/Imgs/ai-modeling-thumbnail%20%288%29.webp' },
+    { title: '陶瓷花瓶', localImg: '/Imgs/ai-modeling-thumbnail%20%289%29.webp' },
+    { title: '异形花器', localImg: '/Imgs/ai-modeling-thumbnail%20%2810%29.webp' }
+  ]
+}
+function MyFavoritesPage({ onClose }) {
+  const [activeTab, setActiveTab] = useState('space')
+  const list = FAV_DATA[activeTab] || []
+  const [headerHidden, setHeaderHidden] = useState(false)
+  const scrollRef = useRef(null)
+  const lastY = useRef(0)
+  const ticking = useRef(false)
+  // 收藏状态：默认全部为已收藏（红心填满）
+  const [liked, setLiked] = useState({})
+  const isLiked = (tab, idx) => liked[`${tab}-${idx}`] !== false
+  const toggleLike = (tab, idx) => {
+    setLiked(prev => ({ ...prev, [`${tab}-${idx}`]: !isLiked(tab, idx) }))
+  }
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      if (ticking.current) return
+      ticking.current = true
+      requestAnimationFrame(() => {
+        const y = el.scrollTop
+        if (y < 10) setHeaderHidden(false)
+        else if (y > lastY.current + 4) setHeaderHidden(true)
+        else if (y < lastY.current - 4) setHeaderHidden(false)
+        lastY.current = y
+        ticking.current = false
+      })
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // 简易双列瀑布流分配：按高度累加放入较短的列
+  const cols = [[], []]
+  const colH = [0, 0]
+  list.forEach(item => {
+    const shorter = colH[0] <= colH[1] ? 0 : 1
+    cols[shorter].push(item)
+    colH[shorter] += (item.ratio || 1.2)
+  })
+
+  return (
+    <div className="fav-page">
+      {/* 圆形返回按钮 */}
+      <button type="button" className="fav-back-btn" onClick={onClose}>
+        <ArrowLeftIcon size={18} strokeWidth={2.2} />
+      </button>
+
+      {/* 可隐藏的标题 + Tab */}
+      <div className={'fav-header-bar' + (headerHidden ? ' hide' : '')}>
+        <h1 className="fav-main-title">我的收藏</h1>
+        <div className="fav-tabs">
+          {FAV_TABS.map(t => (
+            <button
+              key={t.key}
+              type="button"
+              className={'fav-tab' + (activeTab === t.key ? ' active' : '')}
+              onClick={() => setActiveTab(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 瀑布流 / 方形网格 */}
+      <div className="fav-scroll" ref={scrollRef}>
+        {activeTab === 'ai' ? (
+          /* AI 模型：双列正方形网格 */
+          <div className="fav-grid-square">
+            {list.map((item, i) => (
+              <div key={item.title + i} className="fav-square-card">
+                <div
+                  className="fav-square-img"
+                  style={{ backgroundImage: `url(${item.localImg})` }}
+                />
+                <div className="fav-pin-body">
+                  <div className="fav-pin-title">{item.title}</div>
+                  <button
+                    type="button"
+                    className={'fav-heart-btn' + (isLiked(activeTab, i) ? ' liked' : '')}
+                    onClick={() => toggleLike(activeTab, i)}
+                  >
+                    <HeartIcon size={14} strokeWidth={2} fill={isLiked(activeTab, i) ? 'currentColor' : 'none'} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* 空间 / Moodboard：瀑布流 */
+          <div className="fav-masonry">
+            {cols.map((col, ci) => (
+              <div key={ci} className="fav-masonry-col">
+                {col.map((item, i) => {
+                  const globalIdx = list.indexOf(item)
+                  return (
+                    <div key={item.title + i} className="fav-pin">
+                      <div
+                        className="fav-pin-img"
+                        style={{
+                          backgroundImage: `url(${item.localImg || IMG(item.img, 400)})`,
+                          paddingBottom: `${(item.ratio || 1.2) * 100}%`
+                        }}
+                      />
+                      <div className="fav-pin-body">
+                        <div className="fav-pin-info">
+                          <div className="fav-pin-title">{item.title}</div>
+                          <div className="fav-pin-desc">{item.desc}</div>
+                        </div>
+                        <button
+                          type="button"
+                          className={'fav-heart-btn' + (isLiked(activeTab, globalIdx) ? ' liked' : '')}
+                          onClick={() => toggleLike(activeTab, globalIdx)}
+                        >
+                          <HeartIcon size={14} strokeWidth={2} fill={isLiked(activeTab, globalIdx) ? 'currentColor' : 'none'} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
   const handleMenuClick = key => {
     if (key === 'mags') onOpenMyMags?.()
     if (key === 'cache') onOpenCache?.()
+    if (key === 'fav') onOpenFav?.()
   }
 
   return (
@@ -2437,32 +2922,14 @@ function MePage({ onOpenHistory, onOpenMyMags, onOpenCache }) {
             <span>登出</span>
           </button>
         </div>
-      </section>
-
-      {/* 工作台 — 核心创作入口 */}
-      <section className="me-studio-section">
-        <div className="me-section-head">
-          <div className="me-section-title">
-            <LayoutGridIcon size={16} strokeWidth={2.2} />
-            <span>我的工作台</span>
-          </div>
-        </div>
-        <div className="me-studio-grid">
+        {/* 工作台入口 — 并排填满 */}
+        <div className="me-card-studio-row">
           {ME_STUDIO.map(s => {
             const I = s.icon
             return (
-              <button key={s.key} className="me-studio-card" style={{ background: s.gradient }}>
-                <div className="me-studio-card-top">
-                  <div className="me-studio-icon" style={{ color: s.iconColor }}>
-                    <I size={22} strokeWidth={2} />
-                  </div>
-                  {s.badge && <span className="me-studio-badge">{s.badge}</span>}
-                </div>
-                <div className="me-studio-card-body">
-                  <div className="me-studio-label">{s.label}</div>
-                  <div className="me-studio-desc">{s.desc}</div>
-                </div>
-                {s.count !== null && <div className="me-studio-count">{s.count}</div>}
+              <button key={s.key} className="me-card-studio-btn" style={{ '--studio-color': s.iconColor }}>
+                <I size={18} strokeWidth={2.2} />
+                <span>{s.label}</span>
               </button>
             )
           })}
@@ -2556,6 +3023,39 @@ function sortHistory(list, key) {
       return arr.sort((a, b) => b.date.localeCompare(a.date))
   }
 }
+/* ---------- 下载队列可识别项 查找器 （同时覆盖历史 / 视频卡标题） ---------- */
+function findDlItem(key) {
+  const h = ME_HISTORY.find(x => x.title === key)
+  if (h) return h
+  const i = VIDEO_CONTENT.findIndex(x => x.title === key)
+  if (i >= 0) {
+    const v = cycle(VIDEO_URLS, i)
+    return {
+      title: VIDEO_CONTENT[i].title,
+      posterUrl: v.poster,
+      date: getIssueMeta(0).dateStr,
+      size: '视频内容',
+      isVideo: true
+    }
+  }
+  // 故事卡里的可漫游太空舱（项名作为 key）
+  for (const story of STORY_CONTENT) {
+    if (!story?.items) continue
+    const it = story.items.find(x => x.name === key)
+    if (it) {
+      return {
+        title: it.name,
+        posterUrl: it.imgUrl,
+        img: it.img,
+        date: getIssueMeta(0).dateStr,
+        size: it.price || '可漫游空间',
+        isSpace: true
+      }
+    }
+  }
+  return null
+}
+
 /* ---------- 下载队列 Hook & 左下角浮球 ---------- */
 function useDownloadQueue() {
   const [downloads, setDownloads] = useState({})
@@ -2720,7 +3220,7 @@ function DownloadCenterSheet({ open, downloads, onClose, togglePauseResume, onEn
   const order = { downloading: 0, spinning: 0, paused: 1, queued: 2, done: 3 }
   const sorted = Object.entries(downloads || {})
     .map(([key, v]) => {
-      const item = ME_HISTORY.find(h => h.title === key)
+      const item = findDlItem(key)
       return item ? { key, ...v, ...item } : null
     })
     .filter(Boolean)
@@ -2746,7 +3246,7 @@ function DownloadCenterSheet({ open, downloads, onClose, togglePauseResume, onEn
               const isPaused = status === 'paused'
               return (
                 <li key={d.key} className="dl-center-item">
-                  <div className="dl-center-cover" style={{ backgroundImage: `url(${IMG(d.img, 200)})` }} />
+                  <div className="dl-center-cover" style={{ backgroundImage: `url(${d.posterUrl || IMG(d.img, 200)})` }} />
                   <div className="dl-center-info">
                     <div className="dl-center-name">{d.title}</div>
                     <div className="dl-center-meta">
@@ -2799,7 +3299,7 @@ function DownloadToastStack({ toasts, onEnter }) {
     <div className="dl-toast-stack">
       {toasts.map(t => (
         <div key={t.id} className={'dl-toast' + (t.leaving ? ' leaving' : '')}>
-          <div className="dl-toast-cover" style={{ backgroundImage: `url(${IMG(t.img, 160)})` }} />
+          <div className="dl-toast-cover" style={{ backgroundImage: `url(${t.posterUrl || IMG(t.img, 160)})` }} />
           <div className="dl-toast-info">
             <div className="dl-toast-tag">下载完成</div>
             <div className="dl-toast-name">{t.title}</div>
@@ -3005,7 +3505,7 @@ export default function App() {
     Object.entries(downloads).forEach(([key, v]) => {
       if (v?.status === 'done' && !seenDoneRef.current.has(key)) {
         seenDoneRef.current.add(key)
-        const item = ME_HISTORY.find(h => h.title === key)
+        const item = findDlItem(key)
         if (!item) return
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
         setToasts(prev => [...prev, { id, ...item, leaving: false }])
@@ -3126,6 +3626,10 @@ export default function App() {
     return <LocalCachePage onClose={() => setView('feed')} />
   }
 
+  if (view === 'fav') {
+    return <MyFavoritesPage onClose={() => setView('feed')} />
+  }
+
   return (
     <>
       <TopHeader
@@ -3155,26 +3659,33 @@ export default function App() {
           onOpenHistory={() => setView('history')}
           onOpenMyMags={() => setView('mymags')}
           onOpenCache={() => setView('cache')}
+          onOpenFav={() => setView('fav')}
         />
       ) : (
         <>
-          <main className="feed" key={activeTab + '-' + issueOffset}>
-            {items.map(it => {
-              const C = BUILDERS[it.type]
-              return <C key={it.key} idx={it.idx} onOpen={openDetail} />
-            })}
+          {/* 每期杂志统一顺序：视频轮播 → 横向案例集 → 单品故事 */}
+          <main className="feed feed-fixed" key={activeTab + '-' + issueOffset}>
+            <VideoCard
+              idx={Math.abs(issueOffset)}
+              onOpen={openDetail}
+              downloads={downloads}
+              startDownload={startDownload}
+              togglePauseResume={togglePauseResume}
+            />
+            <GalleryCard idx={Math.abs(issueOffset)} onOpen={openDetail} />
+            <StoryCard idx={Math.abs(issueOffset) + 1} onOpen={openDetail} />
+            <div className="feed-end-tip">— 本期完 —</div>
           </main>
-          <InfiniteScroll loadMore={loadMore} hasMore={hasMore}>
-            {hasMore ? (
-              <div className="loader"><DotLoading /></div>
-            ) : (
-              <div className="loader">— 你已看完本期精选 —</div>
-            )}
-          </InfiniteScroll>
         </>
       )}
       {detail && (
-        <DetailOverlay detail={detail} onClose={() => setDetail(null)} />
+        <DetailOverlay
+          detail={detail}
+          onClose={() => setDetail(null)}
+          downloads={downloads}
+          startDownload={startDownload}
+          togglePauseResume={togglePauseResume}
+        />
       )}
             <AiFab
               onClick={() => {

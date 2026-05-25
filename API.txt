@@ -1,0 +1,50 @@
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  baseURL: "https://api.jiekou.ai/openai",
+  apiKey: "<YOUR JIEKOU API Key>",
+});
+const stream = true; // or false
+
+async function run() {
+  const completion = await openai.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "做一个乐于助人的助手",
+      },
+      {
+        role: "user",
+        content: "Hi there!",
+      },
+    ],
+    model: "doubao-1-5-pro-32k-250115",
+    stream,
+    response_format: { type: "text" },
+    max_tokens: 6000,
+    temperature: 1,
+    min_p: 0,
+    top_k: 50,
+    presence_penalty: 0,
+    frequency_penalty: 0,
+    repetition_penalty: undefined
+  });
+
+  if (stream) {
+    for await (const chunk of completion) {
+      if (chunk.choices[0].finish_reason) {
+        console.log(chunk.choices[0].finish_reason);
+      } else {
+        console.log(chunk.choices[0].delta.content);
+      }
+    }
+  } else {
+    console.log(JSON.stringify(completion));
+  }
+}
+
+run();
+
+
+token key:sk_mDYJdacufTzjlYb8dcn5zHtADoQc-bHfri2udURCwqc
+  

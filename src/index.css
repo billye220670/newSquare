@@ -668,6 +668,143 @@ html, body, #root {
   z-index: 1;
   background: #000;
 }
+
+/* video carousel：卡片本身可左右滑动，含顶部圆点指示器 */
+.tcard-video-carousel {
+  aspect-ratio: 4 / 5;
+  background: #000;
+  position: relative;
+}
+.tcard-video-carousel .video-carousel-swiper,
+.tcard-video-carousel .video-carousel-swiper .swiper-wrapper,
+.tcard-video-carousel .video-carousel-swiper .swiper-slide {
+  height: 100%;
+}
+.video-slide {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+.video-slide .video-poster {
+  position: absolute; inset: 0;
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+.video-slide video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  background: #000;
+}
+.video-slide::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 40%;
+  z-index: 2;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+}
+.video-carousel-dots {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(20,20,22,.42);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  z-index: 6;
+  pointer-events: none;
+}
+.vc-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.45);
+  transition: width .25s ease, background .25s ease, border-radius .25s ease;
+}
+.vc-dot.active {
+  width: 16px;
+  border-radius: 3px;
+  background: #fff;
+}
+
+/* 本期完提示（固定顺序 feed 底部） */
+.feed-end-tip {
+  text-align: center;
+  padding: 18px 0 12px;
+  color: #b0b0b5;
+  font-size: 12px;
+  letter-spacing: 1.2px;
+  font-weight: 600;
+}
+
+/* 详情页底部可漫游太空舱排行榜 */
+.detail-rank-list {
+  margin: 24px 0 8px;
+}
+.detail-rank-list .list-item:hover { background: rgba(0,0,0,.02); }
+
+/* 详情页中的内嵌空间漫游预览视频：跨出 detail-body 左右 padding，铺满两侧 */
+.detail-inline-video {
+  margin: 22px -22px;
+  background: #000;
+  overflow: hidden;
+  position: relative;
+  line-height: 0;
+}
+.detail-inline-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+/* 详情页内嵌视频轮播区域（镜像主页 VideoCard 轮播） */
+.detail-video-section {
+  --bar-h: 68px; /* 继承 .tcard 的品牌条高度，保证 video-overlay bottom 正确 */
+  aspect-ratio: 9 / 14;
+  min-height: 60vh;
+  background: #000;
+  position: relative;
+}
+.detail-video-section .video-carousel-swiper,
+.detail-video-section .video-carousel-swiper .swiper-wrapper,
+.detail-video-section .video-carousel-swiper .swiper-slide {
+  height: 100%;
+}
+.detail-video-section .video-slide {
+  height: 100%;
+  cursor: default;
+}
+
+/* 视频卡 bottom-bar 内复用 history-* 底底 → 白调覆盖（深色背景上更和谐） */
+.bottom-bar .history-cloud { color: #fff; }
+.bottom-bar .history-spinner {
+  border-color: rgba(255,255,255,.28);
+  border-top-color: #fff;
+}
+.bottom-bar .history-progress-track { stroke: rgba(255,255,255,.28); }
+.bottom-bar .history-progress-bar { stroke: #fff; }
+.bottom-bar .history-progress-stop { background: #fff; }
+.bottom-bar .history-progress-play { border-left-color: #fff; }
+.bottom-bar .history-go {
+  background: rgba(255,255,255,.22);
+  color: #fff;
+}
+.bottom-bar .history-go:active { background: rgba(255,255,255,.32); }
 .video-mute {
   position: absolute;
   top: 14px; right: 14px;
@@ -1008,6 +1145,68 @@ html, body, #root {
   transform: scale(.96);
 }
 
+/* 搜索页探索瀑布流 */
+.search-explore-section {
+  padding-bottom: 24px;
+}
+.search-explore-masonry {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0 0;
+  align-items: flex-start;
+}
+.search-explore-masonry .fav-masonry-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.search-explore-masonry .fav-pin {
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 12px -4px rgba(0,0,0,.08), 0 0.5px 2px rgba(0,0,0,.04);
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.search-explore-masonry .fav-pin:active {
+  transform: scale(.97);
+  box-shadow: 0 1px 6px -2px rgba(0,0,0,.1);
+}
+.search-explore-masonry .fav-square-card {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform .18s ease;
+}
+.search-explore-masonry .fav-square-card:active {
+  transform: scale(.95);
+}
+
+/* 类型标签 */
+.explore-type-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  line-height: 1.4;
+  letter-spacing: .2px;
+  white-space: nowrap;
+}
+.explore-type-tag.tag-space {
+  background: rgba(59, 130, 246, .12);
+  color: #3b82f6;
+}
+.explore-type-tag.tag-moodboard {
+  background: rgba(168, 85, 247, .12);
+  color: #a855f7;
+}
+.explore-type-tag.tag-ai {
+  background: rgba(245, 158, 11, .12);
+  color: #d97706;
+}
+
 /* 热门期刊：横向自动滚动封面 */
 .search-hot-section {
   /* 让横向 swiper 撑出页面左右内边距，达到边缘外溢效果 */
@@ -1202,9 +1401,42 @@ html, body, #root {
 .me-card {
   background: linear-gradient(135deg, #fafafd 0%, #f2f2f5 100%);
   border-radius: 20px;
-  padding: 18px 18px 6px;
+  padding: 18px 18px 0;
   box-shadow: 0 10px 30px -14px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
   overflow: hidden;
+}
+.me-card-studio-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin: 14px -18px 0;
+  border-top: 1px solid rgba(0,0,0,.06);
+}
+.me-card-studio-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 18px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #48484c;
+  cursor: pointer;
+  transition: background .18s ease, transform .18s ease;
+  position: relative;
+}
+.me-card-studio-btn:active { background: rgba(0,0,0,.04); transform: scale(.96); }
+.me-card-studio-btn + .me-card-studio-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%; bottom: 22%;
+  width: 1px;
+  background: rgba(0,0,0,.06);
 }
 .me-hero {
   display: flex;
@@ -1562,6 +1794,8 @@ html, body, #root {
 }
 .detail-hero-single { aspect-ratio: 9 / 14; min-height: 60vh; }
 .detail-hero-story  { aspect-ratio: 9 / 13; min-height: 56vh; }
+/* video variant 头图：稍矮，给下方轮播留出视觉空间 */
+.detail-hero-video  { aspect-ratio: 9 / 11; min-height: 46vh; }
 .detail-hero-grad {
   position: absolute;
   inset: 0;
@@ -3307,6 +3541,246 @@ html, body, #root {
   margin-left: 2px;
 }
 
+
+/* ============================================================
+   我的收藏页（MyFavoritesPage）
+   ============================================================ */
+.fav-page {
+  position: fixed;
+  inset: 0;
+  background: #f2f2f7;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  animation: searchPageIn .32s cubic-bezier(.22,.8,.36,1) both;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* 圆形返回按钮 */
+.fav-back-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 14px);
+  left: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1c1c1e;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+  transition: transform .15s ease, background .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fav-back-btn:active {
+  transform: scale(.9);
+  background: rgba(255,255,255,1);
+}
+
+/* 可隐藏的标题 + Tab 容器（overlay 在列表之上） */
+.fav-header-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  padding-top: 56px;
+  padding-bottom: 12px;
+  background: linear-gradient(to bottom, rgba(242,242,245,0.97) 60%, rgba(242,242,245,0));
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  transition: transform .3s cubic-bezier(.22,.8,.36,1), opacity .25s ease;
+  will-change: transform, opacity;
+}
+.fav-header-bar.hide {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 主标题：居左大字 */
+.fav-main-title {
+  margin: 10px 0 0;
+  padding: 0 18px;
+  font-family: 'Smiley Sans', 'OPPOSans H', "PingFang SC", sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: #1c1c1e;
+  letter-spacing: -.5px;
+  line-height: 1.2;
+}
+
+/* Tab 栏：居左次级标题风格 */
+.fav-tabs {
+  display: flex;
+  gap: 16px;
+  padding: 14px 18px 10px;
+  background: transparent;
+  border-bottom: none;
+  flex-shrink: 0;
+}
+.fav-tab {
+  position: relative;
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #8a8a8e;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: -.1px;
+  transition: color .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fav-tab.active {
+  color: #1c1c1e;
+  font-weight: 800;
+}
+
+/* 列表滚动容器（擑满页面） */
+.fav-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 150px 0 calc(env(safe-area-inset-bottom, 0px) + 20px);
+}
+
+/* Pinterest 瀑布流 */
+.fav-masonry {
+  display: flex;
+  gap: 10px;
+  padding: 14px 12px;
+  align-items: flex-start;
+}
+.fav-masonry-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fav-pin {
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 2px 12px -4px rgba(0,0,0,.08), 0 0.5px 2px rgba(0,0,0,.04);
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.fav-pin:active {
+  transform: scale(.97);
+  box-shadow: 0 1px 6px -2px rgba(0,0,0,.1);
+}
+.fav-pin-img {
+  width: 100%;
+  height: 0;
+  position: relative;
+  /* paddingBottom 由 JS inline 控制 */
+  background-size: cover;
+  background-position: center;
+  background-color: #e6e6ec;
+}
+
+/* 卡片底部区域 */
+.fav-pin-body {
+  padding: 8px 11px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.fav-pin-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 红心收藏按钮（无背景，放在标题行） */
+.fav-heart-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c7c7cc;
+  cursor: pointer;
+  transition: transform .18s ease, color .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.fav-heart-btn.liked {
+  color: #ff3b57;
+}
+.fav-heart-btn:active {
+  transform: scale(.8);
+}
+.fav-pin-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1c1c1e;
+  letter-spacing: -.2px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fav-pin-desc {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #8a8a8e;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* AI 模型：双列正方形网格 */
+.fav-grid-square {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 14px 12px;
+}
+.fav-square-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform .18s ease;
+}
+.fav-square-card:active {
+  transform: scale(.95);
+}
+.fav-square-img {
+  position: relative;
+  width: 100%;
+  padding-bottom: 100%; /* 1:1 正方形 */
+  border-radius: 14px;
+  background-size: cover;
+  background-position: center;
+  background-color: #e6e6ec;
+  overflow: hidden;
+  box-shadow: 0 2px 10px -3px rgba(0,0,0,.12);
+}
+.fav-square-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1c1c1e;
+  text-align: center;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
 
 /* ============================================================
    本地缓存页（LocalCachePage）
