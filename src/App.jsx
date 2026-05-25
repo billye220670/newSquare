@@ -3588,46 +3588,81 @@ export default function App() {
     return <Login onLogin={() => setLoggedIn(true)} />
   }
 
+  // 下载相关浮层：全局常驻，跨页面在有任务时持续可见
+  // DownloadFab 自身在无活跃任务时返回 null，因此无任务的页面不会显示冗余 UI
+  const downloadOverlay = (
+    <>
+      <DownloadFab downloads={downloads} onClick={() => setCenterOpen(true)} />
+      <DownloadCenterSheet
+        open={centerOpen}
+        downloads={downloads}
+        togglePauseResume={togglePauseResume}
+        onClose={() => setCenterOpen(false)}
+        onEnter={() => { setCenterOpen(false); setView('history') }}
+      />
+      <DownloadToastStack toasts={toasts} onEnter={() => setView('history')} />
+    </>
+  )
+
   if (view === 'archive') {
     return (
-      <ArchivePage
-        current={issueOffset}
-        onPick={off => { switchIssue(off); setView('feed') }}
-        onClose={() => setView('feed')}
-      />
+      <>
+        <ArchivePage
+          current={issueOffset}
+          onPick={off => { switchIssue(off); setView('feed') }}
+          onClose={() => setView('feed')}
+        />
+        {downloadOverlay}
+      </>
     )
   }
 
   if (view === 'history') {
     return (
-      <HistoryPage
-        onClose={() => setView('feed')}
-        downloads={downloads}
-        startDownload={startDownload}
-        togglePauseResume={togglePauseResume}
-      />
+      <>
+        <HistoryPage
+          onClose={() => setView('feed')}
+          downloads={downloads}
+          startDownload={startDownload}
+          togglePauseResume={togglePauseResume}
+        />
+        {downloadOverlay}
+      </>
     )
   }
 
   if (view === 'mymags') {
     return (
-      <MyMagazinesPage
-        onPick={off => {
-          if (activeTab === 'me') setActiveTab('current')
-          switchIssue(off)
-          setView('feed')
-        }}
-        onClose={() => setView('feed')}
-      />
+      <>
+        <MyMagazinesPage
+          onPick={off => {
+            if (activeTab === 'me') setActiveTab('current')
+            switchIssue(off)
+            setView('feed')
+          }}
+          onClose={() => setView('feed')}
+        />
+        {downloadOverlay}
+      </>
     )
   }
 
   if (view === 'cache') {
-    return <LocalCachePage onClose={() => setView('feed')} />
+    return (
+      <>
+        <LocalCachePage onClose={() => setView('feed')} />
+        {downloadOverlay}
+      </>
+    )
   }
 
   if (view === 'fav') {
-    return <MyFavoritesPage onClose={() => setView('feed')} />
+    return (
+      <>
+        <MyFavoritesPage onClose={() => setView('feed')} />
+        {downloadOverlay}
+      </>
+    )
   }
 
   return (
@@ -3694,15 +3729,7 @@ export default function App() {
               }}
               lottieRef={fabLottieRef}
             />
-      <DownloadFab downloads={downloads} onClick={() => setCenterOpen(true)} />
-      <DownloadCenterSheet
-        open={centerOpen}
-        downloads={downloads}
-        togglePauseResume={togglePauseResume}
-        onClose={() => setCenterOpen(false)}
-        onEnter={() => { setCenterOpen(false); setView('history') }}
-      />
-      <DownloadToastStack toasts={toasts} onEnter={() => setView('history')} />
+      {downloadOverlay}
       <AiChatSheet open={aiOpen} onClose={() => setAiOpen(false)} />
     </>
   )
