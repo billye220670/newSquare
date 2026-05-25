@@ -386,27 +386,22 @@ html, body, #root {
 }
 .title-swiper:active .title-slide { cursor: grabbing; }
 
-/* === 主页标题旁收藏心形按钮 === */
-.title-slide-wrap {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-}
-.title-slide-wrap.active {
-  gap: 14px;
-}
+/* === 主页标题旁收藏心形按钮（贴右侧屏幕） === */
 .title-fav-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: none;
-  padding: 4px;
+  padding: 8px;
+  margin-right: -4px;
   cursor: pointer;
   opacity: .85;
   transition: opacity .2s, transform .2s;
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
+  align-self: flex-end;
+  margin-bottom: 2px;
 }
 .title-fav-btn:active {
   transform: scale(1.25);
@@ -855,10 +850,12 @@ html, body, #root {
 .bottom-bar .history-progress-stop { background: #fff; }
 .bottom-bar .history-progress-play { border-left-color: #fff; }
 .bottom-bar .history-go {
-  background: rgba(255,255,255,.22);
+  background: rgba(0,0,0,.42);
   color: #fff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
-.bottom-bar .history-go:active { background: rgba(255,255,255,.32); }
+.bottom-bar .history-go:active { background: rgba(0,0,0,.55); }
 .video-mute {
   position: absolute;
   top: 14px; right: 14px;
@@ -929,14 +926,34 @@ html, body, #root {
 }
 
 /* story */
+.tcard-story-carousel { position: relative; }
+.story-carousel-swiper { width: 100%; }
+.story-carousel-dots {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(20,20,22,.42);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  z-index: 6;
+  pointer-events: none;
+}
 .tcard-story .hero {
-  aspect-ratio: 16 / 11;
+  aspect-ratio: 4 / 3;
   background-size: cover; background-position: center;
   position: relative;
 }
 .tcard-story .hero::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.55), transparent 55%);
+  background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.45) 28%, rgba(0,0,0,.12) 60%, rgba(0,0,0,0) 100%);
+  pointer-events: none;
+  z-index: 1;
 }
 .tcard-story .hero-text {
   position: absolute; left: 20px; right: 20px; bottom: 18px;
@@ -951,6 +968,40 @@ html, body, #root {
   display: flex; justify-content: space-between; align-items: center;
 }
 .product-strip-title .more { color: #007aff; font-size: 13px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.product-strip-title .product-strip-dl {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  padding: 0; margin: 0;
+  background: transparent; border: none; outline: none;
+  color: #1d1d1f; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.product-strip-title .product-strip-dl:active { transform: scale(0.92); }
+
+/* StoryCard hero 右下角云下载白色 overlay，复用 VideoCtaButton(history-*) 状态 */
+.tcard-story .hero { position: relative; }
+.story-hero-dl {
+  position: absolute;
+  right: 14px; bottom: 14px;
+  z-index: 3;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.story-hero-dl .history-cloud { color: #fff; }
+.story-hero-dl .history-spinner {
+  border-color: rgba(255,255,255,.32);
+  border-top-color: #fff;
+}
+.story-hero-dl .history-progress-track { stroke: rgba(255,255,255,.32); }
+.story-hero-dl .history-progress-bar { stroke: #fff; }
+.story-hero-dl .history-progress-stop { background: #fff; }
+.story-hero-dl .history-progress-play { border-left-color: #fff; }
+.story-hero-dl .history-go {
+  background: rgba(0,0,0,.42);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.story-hero-dl .history-go:active { background: rgba(0,0,0,.55); }
 
 .swiper-product { padding: 0 16px !important; }
 .product-item { width: 110px; }
@@ -1739,6 +1790,78 @@ html, body, #root {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 我的期刊封面卡片 — 模拟杂志封面效果 */
+.me-mags-wrap {
+  position: relative;
+  width: 156px;
+  height: 218px;
+}
+/* 背后灰色内页层 */
+.me-mags-pages {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 156px;
+  height: 218px;
+  background: rgb(215, 213, 210);
+  border-radius: 3px;
+}
+.me-mags-card {
+  position: relative;
+  width: 156px;
+  height: 218px;
+  border-radius: 3px 3px 24px 3px;
+  background-size: cover;
+  background-position: center;
+  background-color: #e6e6ec;
+  overflow: hidden;
+  box-shadow: 0 10px 24px -14px rgba(0,0,0,.24), 0 1px 2px rgba(0,0,0,.04);
+  cursor: pointer;
+  transition: transform .2s ease;
+}
+.me-mags-card:active { transform: scale(.97); }
+/* 封面高光模拟 — 一道斜向光带 */
+.me-mags-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255,255,255,.35) 42%,
+    rgba(255,255,255,.10) 50%,
+    transparent 52%
+  );
+  pointer-events: none;
+  z-index: 4;
+}
+/* 右下角内部浅灰色矩形 — 模拟翻折页面，被圆角 clip 掉 */
+.me-mags-fold {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(315deg, rgb(140, 135, 130) 0%, rgb(235, 233, 230) 100%);
+  border-radius: 3px 0 0 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.me-mags-title {
+  position: absolute;
+  left: 10px; right: 10px; bottom: 9px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  line-height: 1.3;
+  text-shadow: 0 1px 2px rgba(0,0,0,.4);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .me-menu {

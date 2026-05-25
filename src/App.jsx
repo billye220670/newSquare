@@ -183,30 +183,14 @@ function TopHeader({ hidden, issueOffset, onIssueChange, onTitleClick, activeTab
                 return (
                   <SwiperSlide key={off} style={{ width: 'auto' }}>
                     {({ isActive }) => (
-                      <span className={'title-slide-wrap' + (isActive ? ' active' : '')}>
-                        <span
-                          className={'title-slide' + (isActive ? ' active' : '')}
-                          onClick={() => {
-                            if (isActive) onTitleClick()
-                            else swiperRef.current?.slideTo(i, 320)
-                          }}
-                        >
-                          {title}
-                        </span>
-                        {isActive && (
-                          <button
-                            type="button"
-                            className="title-fav-btn"
-                            onClick={e => { e.stopPropagation(); onToggleFav(off) }}
-                          >
-                            <HeartIcon
-                              size={20}
-                              strokeWidth={2}
-                              fill={favIssues.has(off) ? '#ff3b57' : 'none'}
-                              color={favIssues.has(off) ? '#ff3b57' : '#999'}
-                            />
-                          </button>
-                        )}
+                      <span
+                        className={'title-slide' + (isActive ? ' active' : '')}
+                        onClick={() => {
+                          if (isActive) onTitleClick()
+                          else swiperRef.current?.slideTo(i, 320)
+                        }}
+                      >
+                        {title}
                       </span>
                     )}
                   </SwiperSlide>
@@ -218,6 +202,20 @@ function TopHeader({ hidden, issueOffset, onIssueChange, onTitleClick, activeTab
             {ALT_TITLES[activeTab] || ''}
           </div>
         </div>
+        {showIssueSwiper && (
+          <button
+            type="button"
+            className="title-fav-btn"
+            onClick={() => onToggleFav(issueOffset)}
+          >
+            <HeartIcon
+              size={20}
+              strokeWidth={2}
+              fill={favIssues.has(issueOffset) ? '#ff3b57' : 'none'}
+              color={favIssues.has(issueOffset) ? '#ff3b57' : '#999'}
+            />
+          </button>
+        )}
       </div>
     </header>
   )
@@ -507,7 +505,7 @@ function VideoSlide({ item, active, onOpen, downloads, startDownload, togglePaus
   }, [active])
 
   return (
-    <div className="video-slide clickable" onClick={handleOpen}>
+    <div className="video-slide">
       <div
         className="video-poster"
         style={{ backgroundImage: `url(${item.poster})` }}
@@ -630,61 +628,98 @@ function MagazineCard({ idx, onOpen }) {
 }
 
 /* ---------- 3. 单品故事（封面 + 自动滚单品列表） ---------- */
-function StoryCard({ idx, onOpen }) {
-  const c = cycle(STORY_CONTENT, idx)
-  const heroRef = useRef(null)
-  const heroSrc = c.coverUrl || IMG(c.cover)
-  const handleOpen = () => {
-    const el = heroRef.current
+function StoryCard({ idx, onOpen, downloads, startDownload, togglePauseResume }) {
+  const [active, setActive] = useState(0)
+  const productSwiperRefs = useRef([])
+  const heroRefs = useRef([])
+
+  // 所有 STORY_CONTENT 条目作为轮播 slides
+  const slides = STORY_CONTENT.map((c, i) => ({
+    ...c,
+    heroSrc: c.coverUrl || IMG(c.cover)
+  }))
+
+  const handleSlideChange = (s) => {
+    setActive(s.activeIndex)
+    // 切换内容时重置对应 product-strip 滚动位置
+    const ref = productSwiperRefs.current[s.activeIndex]
+    if (ref && !ref.destroyed) {
+      ref.slideToLoop(0, 0)
+    }
+  }
+
+  const handleOpen = (si) => {
+    const c = slides[si]
+    const el = heroRefs.current[si]
     if (!el) return
     const origin = el.getBoundingClientRect()
     onOpen?.(origin, {
       variant: 'story',
       payload: {
         eyebrow: c.eyebrow, title: c.title, sub: c.sub,
-        heroImg: heroSrc,
+        heroImg: c.heroSrc,
         listTitle: c.listTitle,
         items: c.items,
         featured: c.items && c.items[0]
       }
     })
   }
+
   return (
-    <article className="tcard tcard-story">
-      <div ref={heroRef} className="hero clickable" onClick={handleOpen} style={{ backgroundImage: `url(${heroSrc})` }}>
-        <div className="hero-text">
-          <div className="eyebrow">{c.eyebrow}</div>
-          <div className="t-title-md">{c.title}</div>
-          <div className="t-sub">{c.sub}</div>
-        </div>
-      </div>
-      <div className="product-strip">
-        <div className="product-strip-title">
-          <span>{c.listTitle}</span>
-          <span className="more">查看全部 ›</span>
-        </div>
-        <Swiper
-          className="swiper-product"
-          modules={[Autoplay, FreeMode]}
-          slidesPerView="auto"
-          spaceBetween={12}
-          freeMode={true}
-          loop={true}
-          loopAdditionalSlides={2}
-          autoplay={{ delay: 0, disableOnInteraction: false, pauseOnMouseEnter: false }}
-          speed={3500}
-          allowTouchMove={true}
-        >
-          {c.items.map((it, i) => (
-            <SwiperSlide key={i} style={{ width: 110 }}>
-              <div className="product-item">
-                <div className="pi-img" style={{ backgroundImage: `url(${it.imgUrl || IMG(it.img, 320)})` }} />
-                <div className="pi-name">{it.name}</div>
-                <div className="pi-price">{it.price}</div>
+    <article className="tcard tcard-story tcard-story-carousel">
+      <Swiper
+        className="story-carousel-swiper"
+        slidesPerView={1}
+        speed={420}
+        onSlideChange={handleSlideChange}
+      >
+        {slides.map((c, si) => (
+          <SwiperSlide key={si}>
+            <div ref={el => { heroRefs.current[si] = el }} className="hero" style={{ backgroundImage: `url(${c.heroSrc})` }}>
+              <div className="hero-text">
+                <div className="eyebrow">{c.eyebrow}</div>
+                <div className="t-title-md">{c.title}</div>
+                <div className="t-sub">{c.sub}</div>
               </div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
+              <div className="story-hero-dl" onClick={e => e.stopPropagation()}>
+                <VideoCtaButton
+                  title={c.title}
+                  downloads={downloads}
+                  startDownload={startDownload}
+                  togglePauseResume={togglePauseResume}
+                />
+              </div>
+            </div>
+            <div className="product-strip">
+              <Swiper
+                className="swiper-product"
+                modules={[Autoplay, FreeMode]}
+                slidesPerView="auto"
+                spaceBetween={12}
+                freeMode={true}
+                loop={true}
+                loopAdditionalSlides={2}
+                autoplay={{ delay: 0, disableOnInteraction: false, pauseOnMouseEnter: false }}
+                speed={3500}
+                allowTouchMove={true}
+                onSwiper={sw => { productSwiperRefs.current[si] = sw }}
+              >
+                {c.items.map((it, i) => (
+                  <SwiperSlide key={i} style={{ width: 110 }}>
+                    <div className="product-item">
+                      <div className="pi-img" style={{ backgroundImage: `url(${it.imgUrl || IMG(it.img, 320)})` }} />
+                    </div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
+          </SwiperSlide>
+        ))}
+      </Swiper>
+      <div className="story-carousel-dots" aria-hidden="true">
+        {slides.map((_, i) => (
+          <span key={i} className={'vc-dot' + (i === active ? ' active' : '')} />
+        ))}
       </div>
     </article>
   )
@@ -2447,8 +2482,6 @@ const ME_STUDIO = [
 ]
 /* 管理菜单 — 低频归档/设置 */
 const ME_MENU = [
-  { key: 'mags',  icon: BookOpenIcon,   label: '我的期刊', extra: '12 期' },
-  { key: 'fav',   icon: BookmarkIcon,   label: '我的收藏', extra: '36 项' },
   { key: 'cache', icon: HardDriveIcon,  label: '本地缓存', extra: '8 套，共 128 MB' }
 ]
 
@@ -2797,8 +2830,8 @@ const FAV_DATA = {
     { title: '异形花器', localImg: '/Imgs/ai-modeling-thumbnail%20%2810%29.webp' }
   ]
 }
-function MyFavoritesPage({ onClose }) {
-  const [activeTab, setActiveTab] = useState('space')
+function MyFavoritesPage({ onClose, initialTab }) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'space')
   const list = FAV_DATA[activeTab] || []
   const [headerHidden, setHeaderHidden] = useState(false)
   const scrollRef = useRef(null)
@@ -2930,9 +2963,7 @@ function MyFavoritesPage({ onClose }) {
 
 function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
   const handleMenuClick = key => {
-    if (key === 'mags') onOpenMyMags?.()
     if (key === 'cache') onOpenCache?.()
-    if (key === 'fav') onOpenFav?.()
   }
 
   return (
@@ -2957,7 +2988,7 @@ function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
           {ME_STUDIO.map(s => {
             const I = s.icon
             return (
-              <button key={s.key} className="me-card-studio-btn" style={{ '--studio-color': s.iconColor }}>
+              <button key={s.key} className="me-card-studio-btn" style={{ '--studio-color': s.iconColor }} onClick={() => onOpenFav?.(s.key)}>
                 <I size={18} strokeWidth={2.2} />
                 <span>{s.label}</span>
               </button>
@@ -2992,6 +3023,43 @@ function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
               </div>
             </SwiperSlide>
           ))}
+        </Swiper>
+      </section>
+
+      <section className="me-recent-section">
+        <div className="me-section-head">
+          <div className="me-section-title">
+            <BookOpenIcon size={16} strokeWidth={2.2} />
+            <span>我的期刊</span>
+          </div>
+          <button type="button" className="me-section-more" onClick={onOpenMyMags}>查看全部 ›</button>
+        </div>
+        <Swiper
+          className="me-recent-swiper"
+          slidesPerView="auto"
+          spaceBetween={10}
+          freeMode={true}
+          grabCursor={true}
+        >
+          {MY_MAGAZINES.slice(0, 8).map((off, i) => {
+            const { title } = getIssueMeta(off)
+            const img = IMG(cycle(COVER_IMAGES, Math.abs(off)), 400)
+            return (
+              <SwiperSlide key={i} style={{ width: 156 }}>
+                <div className="me-mags-wrap">
+                  <div className="me-mags-pages" />
+                  <div
+                    className="me-mags-card"
+                    style={{ backgroundImage: `url(${img})` }}
+                  >
+                    <div className="me-mags-fold" />
+                    <div className="me-recent-shade" />
+                    <div className="me-mags-title">{title}</div>
+                  </div>
+                </div>
+              </SwiperSlide>
+            )
+          })}
         </Swiper>
       </section>
 
@@ -3519,6 +3587,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('')
   const [detail, setDetail] = useState(null)
   const [aiOpen, setAiOpen] = useState(false)
+  const [favInitialTab, setFavInitialTab] = useState('space')
   const fabLottieRef = useRef(null)
   const lastY = useRef(0)
   const ticking = useRef(false)
@@ -3697,7 +3766,7 @@ export default function App() {
   if (view === 'fav') {
     return (
       <>
-        <MyFavoritesPage onClose={() => setView('feed')} />
+        <MyFavoritesPage onClose={() => setView('feed')} initialTab={favInitialTab} />
         {downloadOverlay}
       </>
     )
@@ -3734,7 +3803,7 @@ export default function App() {
           onOpenHistory={() => setView('history')}
           onOpenMyMags={() => setView('mymags')}
           onOpenCache={() => setView('cache')}
-          onOpenFav={() => setView('fav')}
+          onOpenFav={(tab) => { setFavInitialTab(tab || 'space'); setView('fav') }}
         />
       ) : (
         <>
@@ -3748,7 +3817,13 @@ export default function App() {
               togglePauseResume={togglePauseResume}
             />
             <GalleryCard idx={Math.abs(issueOffset)} onOpen={openDetail} />
-            <StoryCard idx={Math.abs(issueOffset) + 1} onOpen={openDetail} />
+            <StoryCard
+              idx={Math.abs(issueOffset) + 1}
+              onOpen={openDetail}
+              downloads={downloads}
+              startDownload={startDownload}
+              togglePauseResume={togglePauseResume}
+            />
             <div className="feed-end-tip">— 本期完 —</div>
           </main>
         </>
