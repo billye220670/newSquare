@@ -2961,11 +2961,7 @@ function MyFavoritesPage({ onClose, initialTab }) {
   )
 }
 
-function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
-  const handleMenuClick = key => {
-    if (key === 'cache') onOpenCache?.()
-  }
-
+function MePage({ onOpenHistory, onOpenMyMags, onOpenFav, onOpenSettings, onPickIssue }) {
   return (
     <main className="me-page">
       <section className="me-card">
@@ -2978,9 +2974,9 @@ function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
             <div className="me-name">林墨</div>
             <div className="me-sub">Cuba Zone · 会员</div>
           </div>
-          <button type="button" className="me-logout-btn" aria-label="登出">
-            <LogOutIcon size={15} strokeWidth={2.2} />
-            <span>登出</span>
+          <button type="button" className="me-logout-btn" aria-label="设置" onClick={onOpenSettings}>
+            <SettingsIcon size={15} strokeWidth={2.2} />
+            <span>设置</span>
           </button>
         </div>
         {/* 工作台入口 — 并排填满 */}
@@ -3046,7 +3042,7 @@ function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
             const img = IMG(cycle(COVER_IMAGES, Math.abs(off)), 400)
             return (
               <SwiperSlide key={i} style={{ width: 156 }}>
-                <div className="me-mags-wrap">
+                <div className="me-mags-wrap" onClick={() => onPickIssue?.(off)}>
                   <div className="me-mags-pages" />
                   <div
                     className="me-mags-card"
@@ -3063,22 +3059,42 @@ function MePage({ onOpenHistory, onOpenMyMags, onOpenCache, onOpenFav }) {
         </Swiper>
       </section>
 
-      <ul className="me-menu">
-        {ME_MENU.map(m => {
-          const I = m.icon
-          return (
-            <li key={m.label} className="me-menu-item" onClick={() => handleMenuClick(m.key)}>
-              <I size={18} strokeWidth={2} className="me-menu-icon" />
-              <span className="me-menu-label">{m.label}</span>
-              {m.extra && <span className="me-menu-extra">{m.extra}</span>}
-              <ChevronRightIcon size={16} strokeWidth={2} className="me-menu-arrow" />
-            </li>
-          )
-        })}
-      </ul>
-
       <div className="me-footer">Cuba Zone v0.0.1</div>
     </main>
+  )
+}
+
+/* ---------- 设置页 ---------- */
+function SettingsPage({ onClose, onOpenCache, onLogout }) {
+  return (
+    <div className="history-page">
+      <header className="history-header">
+        <button type="button" className="history-close" onClick={onClose}>
+          <LeftOutline />
+          返回
+        </button>
+        <div className="history-header-title">设置</div>
+      </header>
+      <div className="settings-body">
+        <ul className="me-menu">
+          {ME_MENU.map(m => {
+            const I = m.icon
+            return (
+              <li key={m.label} className="me-menu-item" onClick={() => { if (m.key === 'cache') onOpenCache?.() }}>
+                <I size={18} strokeWidth={2} className="me-menu-icon" />
+                <span className="me-menu-label">{m.label}</span>
+                {m.extra && <span className="me-menu-extra">{m.extra}</span>}
+                <ChevronRightIcon size={16} strokeWidth={2} className="me-menu-arrow" />
+              </li>
+            )
+          })}
+        </ul>
+        <button type="button" className="settings-logout-btn" onClick={onLogout}>
+          <LogOutIcon size={16} strokeWidth={2.2} />
+          <span>退出登录</span>
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -3571,7 +3587,8 @@ function HistoryPage({ onClose, downloads, startDownload, togglePauseResume }) {
 /* ---------- 主体 ---------- */
 export default function App() {
   const [loggedIn, setLoggedIn] = useState(false)
-  const [view, setView] = useState('feed') // 'feed' | 'archive' | 'history' | 'mymags'
+  const [view, setView] = useState('feed') // 'feed' | 'archive' | 'history' | 'mymags' | 'cache' | 'fav' | 'settings'
+  const [cachePrev, setCachePrev] = useState('feed')
   const [issueOffset, setIssueOffset] = useState(0)
   const [activeTab, setActiveTab] = useState('current') // 'current' | 'recommend' | 'me'
   const [favIssues, setFavIssues] = useState(() => new Set(MY_MAGAZINES))
@@ -3757,7 +3774,20 @@ export default function App() {
   if (view === 'cache') {
     return (
       <>
-        <LocalCachePage onClose={() => setView('feed')} />
+        <LocalCachePage onClose={() => setView(cachePrev)} />
+        {downloadOverlay}
+      </>
+    )
+  }
+
+  if (view === 'settings') {
+    return (
+      <>
+        <SettingsPage
+          onClose={() => setView('feed')}
+          onOpenCache={() => { setCachePrev('settings'); setView('cache') }}
+          onLogout={() => { setLoggedIn(false); setView('feed') }}
+        />
         {downloadOverlay}
       </>
     )
@@ -3802,8 +3832,9 @@ export default function App() {
         <MePage
           onOpenHistory={() => setView('history')}
           onOpenMyMags={() => setView('mymags')}
-          onOpenCache={() => setView('cache')}
           onOpenFav={(tab) => { setFavInitialTab(tab || 'space'); setView('fav') }}
+          onOpenSettings={() => setView('settings')}
+          onPickIssue={off => { setActiveTab('current'); switchIssue(off); }}
         />
       ) : (
         <>
